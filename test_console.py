@@ -5,14 +5,15 @@ from shlex import split
 
 import models
 from models import storage
-from models.base_model import BaseModel
-from models.user import User
-from models.city import City
-from models.amenity import Amenity
-from models.place import Place
-from models.state import State
-from models.review import Review
 
+import tests
+from tests.test_models.test_base_model import BaseModel
+from tests.test_models.test_user import User
+from tests.test_models.test_city import City
+from tests.test_models.test_amenity import Amenity
+from tests.test_models.test_place import Place
+from tests.test_models.test_state import State
+from tests.test_models.test_review import Review
 
 def parse(argmt):
     curly_match = re.search(r"\{(.*?)\}", argmt)
@@ -47,15 +48,12 @@ class HBNBCommand(cmd.Cmd):
 
     def default(self, arg):
         """Default behavior for cmd module when input is invalid"""
-        arg_dict = {
+        argdict = {
             "all": self.do_all,
             "show": self.do_show,
             "destroy": self.do_destroy,
             "count": self.do_count,
-            "update": self.do_update,
-            "help": self.do_help,
-            "quit": self.do_quit,
-            "exit": self.do_quit
+            "update": self.do_update
         }
         match = re.search(r"\.", arg)
         if match is not None:
@@ -64,9 +62,9 @@ class HBNBCommand(cmd.Cmd):
             if match is not None:
                 command_exc = [arg_search[1][:matched_arg.span()[0]],
                                matched_arg.group()[1:-1]]
-                if command_exc[0] in arg_dict.keys():
+                if command_exc[0] in argdict.keys():
                     call = "{} {}".format(arg_search[0], command_exc[1])
-                    return arg_dict[command_exc[0]](call)
+                    return argdict[command_exc[0]](call)
         print("*** Unknown syntax: {}".format(arg))
         return False
 
@@ -75,7 +73,7 @@ class HBNBCommand(cmd.Cmd):
         return True
 
     def do_EOF(self, arg):
-        """EOF signal to exit the program"""
+        """EOF command to exit the program"""
         print("")  # Print a new line before exiting
         return True
 
@@ -84,9 +82,7 @@ class HBNBCommand(cmd.Cmd):
         pass
 
     def do_create(self, arg):
-        """Usage: create <class>
-        Create a new class instance and prints id of created instance.
-        """
+        """Create a new instance of a model"""
         parses_arg = parse(arg)
         if len(parses_arg) == 0:
             print("** class name missing **")
@@ -97,9 +93,7 @@ class HBNBCommand(cmd.Cmd):
             storage.save()
 
     def do_show(self, arg):
-        """Usage: show <class> <id> or <class>.show(<id>)
-        Display the class instance of a given instance.
-        """
+        """Show details of a model instance"""
         parsed_arg = parse(arg)
         object_dict = storage.all()
         if len(parsed_arg) == 0:
@@ -114,27 +108,24 @@ class HBNBCommand(cmd.Cmd):
             print(object_dict["{}.{}".format(parsed_arg[0], parsed_arg[1])])
 
     def do_destroy(self, arg):
-        """Usage: destroy <class> <id> or <class>.destroy(<id>)
-        Delete a class instance of a given id."""
-        parsed_arg = parse(arg)
-        object_dict = storage.all()
-        if len(parsed_arg) == 0:
+        """Delete a model instance"""
+        args = arg.split()
+        if not arg:
             print("** class name missing **")
-        elif parsed_arg[0] not in HBNBCommand.__classes:
+        elif args[0] not in globals():
             print("** class doesn't exist **")
-        elif len(parsed_arg) == 1:
+        elif len(args) < 2:
             print("** instance id missing **")
-        elif "{}.{}".format(parsed_arg[0],
-                            parsed_arg[1]) not in object_dict.keys():
-            print("** no instance found **")
         else:
-            del object_dict["{}.{}".format(parsed_arg[0], parsed_arg[1])]
-            storage.save()
+            key = args[0] + "." + args[1]
+            if key in storage.all():
+                storage.all().pop(key)
+                storage.save()
+            else:
+                print("** no instance found **")
 
     def do_all(self, arg):
-        """Usage: all or all <class> or <class>.all()
-        Display all instances of a specified class.
-        If no class is specified, displays all the instance of the objects."""
+        """Show all instances of a model"""
         par_arg = parse(arg)
         if len(par_arg) > 0 and par_arg[0] not in HBNBCommand.__classes:
             print("** class doesn't exist **")
@@ -148,11 +139,7 @@ class HBNBCommand(cmd.Cmd):
             print(obj_list)
 
     def do_update(self, arg):
-        """Usage: update <class> <id> <attribute_name> <attribute_value> or
-       <class>.update(<id>, <attribute_name>, <attribute_value>) or
-       <class>.update(<id>, <dictionary>)
-        Update a class instance of a given id by adding or updating
-        a given attribute key/value pair"""
+        """Update attributes of a model instance"""
         parsed_arg = parse(arg)
         obj_dict = storage.all()
 
@@ -197,8 +184,7 @@ class HBNBCommand(cmd.Cmd):
         storage.save()
 
     def do_count(self, arg):
-        """Usage: count <class> or <class>.count()
-        Prints the number of instances of a given class."""
+        """Count the number of instances of a model"""
         parsed_arg = parse(arg)
         count = 0
         for obj in storage.all().values():
